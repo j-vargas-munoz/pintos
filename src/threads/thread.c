@@ -15,7 +15,6 @@
 #include "userprog/process.h"
 #endif
 
-// ldfjlsdjfsdkjfklsjfl
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -28,7 +27,7 @@
 
 static struct list ready_list[64];
 
-int highest_priority;
+static int highest_priority;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -375,9 +374,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  //thread_current ()->priority = new_priority;
   enum intr_level old_level = intr_disable();
-  //int old_priority = thread_current()->priority;
   thread_current()->priority = new_priority;
 
   if (new_priority < highest_priority)
@@ -391,7 +388,6 @@ thread_set_priority (int new_priority)
       thread_yield();
     }
   }
-
   intr_set_level(old_level);
 }
 
