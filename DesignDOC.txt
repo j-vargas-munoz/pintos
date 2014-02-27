@@ -30,19 +30,26 @@ Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 >> thread.c
->>    int highest_priority;     /* Utilizada para saber cuál es la prioridad más alta en la ready_list */
+>>    static struct list ready_list[64];     /* Arreglo de listas para agrupar prioridades */
+>>    static int highest_priority;     /* Utilizada para saber cuál es la prioridad más alta en la ready_list */
 
 ---- ALGORITHMS ----
 
 >> B2: How do you ensure that the highest priority thread waiting for
 >> a semaphore or condition variable wakes up first?
 
+>> Los threads se insertan ordenadamente en la lista de espera de manera que el de mayor prioridad siempre sea el primero en despertar.
+
 >> B3: How do you manage preemption when it is necessary during an 
 >> interrupt handler?
+
+>> Se verifica que el thread actualmente corriendo sea el de mayor prioridad, si no lo es, se cambia por el de mayor prioridad y se guarda en la ready_list.
 
 >> B4: Did you need to reorganize any instruction inside the code
 >> that manages semaphores or condition variables? if your answer is
 >> yes explain why
+
+>> No se necesitó, solo se agregó el código para verificar que se ejecute el thread con mayor prioridad.
 
 ---- SYNCHRONIZATION ----
 
@@ -54,3 +61,14 @@ Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+>> El diseño inicial consistía en seguir tratando a la ready_list como una sóla lista en insertar ordenadamente.
+>> El problema es que sería más complicado garantizar el comportamiento round robin para threads con la misma
+>> prioridad. Se decidió representar a la ready list como un arreglo con las 64 prioridades, donde cada una tiene
+>> una lista. En ésta lista se inserta al final y se toma del inicio (garantizando así el comportamiento round robin).
+>> Éste diseño es superior ya que el anterior toma tiempo O(n) para recorrer la lista de threads.
+>> En el diseño que se presenta en este trabajo, las inserciones son en tiempo O(1) (se inserta al final de una lista,
+>> y el acceso a ésta fue en tiempo O(n)) y tomar al thread de mayor prioridad también toma tiempo O(n) (razonamiento
+>> análogo). Por optimización, se decidió incluir una variable llamada highest_priority, la cual mantiene el registro de 
+>> la mayor prioridad registrada en el arreglo ready_list. De ésta forma, funciones que requieren conocer la mayor
+>> prioridad no tienen que recorrer el arreglo.
