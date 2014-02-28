@@ -38,18 +38,23 @@ Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
 >> B2: How do you ensure that the highest priority thread waiting for
 >> a semaphore or condition variable wakes up first?
 
->> Los threads se insertan ordenadamente en la lista de espera de manera que el de mayor prioridad siempre sea el primero en despertar.
+>> En el caso de los threads esperando por un semáforo, éstos son insertados de manera ordenada en la lista waiters, por lo
+>> que a la hora de despertar al thread de mayor prioridad, sólo se hace un pop_first de la lista.
+>> En el caso de la variable condicional, los semáforos son insertados en la lista de manera normal. Cuando se tome un elemento de
+>> la lista, se recorrerá para buscar al elemento máximo, ésto es, al semáforo cuya lista tiene al thread de mayor prioridad.
 
 >> B3: How do you manage preemption when it is necessary during an 
 >> interrupt handler?
 
->> Se verifica que el thread actualmente corriendo sea el de mayor prioridad, si no lo es, se cambia por el de mayor prioridad y se guarda en la ready_list.
+>> Se utiliza una función llamada thread_check_highest_priority, la cual es invocada al momento de crear un thread. Ésta función
+>> se encarga de ceder el procesador al thread de prioridad más alta, si éste es distinto del thread actual.
 
 >> B4: Did you need to reorganize any instruction inside the code
 >> that manages semaphores or condition variables? if your answer is
 >> yes explain why
 
->> No se necesitó, solo se agregó el código para verificar que se ejecute el thread con mayor prioridad.
+>> Fueron modificadas las funciones que operan sobre listas, para garantizar ahora que los primeros elementos a considerar
+>> sean aquellos con la prioridad más alta.
 
 ---- SYNCHRONIZATION ----
 

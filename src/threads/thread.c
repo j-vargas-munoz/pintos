@@ -21,10 +21,11 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
-/* List of processes in THREAD_READY state, that is, processes
+/* Array of lists of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list[64];
 
+/* La localidad de la ready_list más alta cuya lista es no vacía */
 static int highest_priority;
 
 /* List of all processes.  Processes are added to this list
@@ -107,14 +108,15 @@ thread_init (void)
 }
 
 
+/* Revisa si el thread actual tiene menor prioridad que el thread con
+   la prioridad más alta. De ser así, cede el procesador. */
 void
 thread_check_highest_priority (void)
 {
   if (highest_priority == 0 && list_empty(&ready_list[0]))
     return;
-  struct thread *t = list_entry(list_front(&ready_list[highest_priority]), struct thread, elem);
   struct thread *current = thread_current();
-  if (current-> priority < t->priority)
+  if (current-> priority < highest_priority)
   {
     if (intr_context())
       intr_yield_on_return();
@@ -232,6 +234,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  /* Cede el procesador en caso de no ser el thread con mayor prioridad */
   thread_check_highest_priority();
 
   return tid;
@@ -544,6 +548,7 @@ next_thread_to_run (void)
 }*/
 
 
+/* Actualiza la variable highest_priority */
 static void
 update_highest_priority (int old_highest)
 {
@@ -663,6 +668,7 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
+/* Compara las prioridades entre dos threads */
 bool
 thread_cmp_priority (const struct list_elem *a, const struct list_elem *b,
                void *aux UNUSED)
@@ -672,6 +678,8 @@ thread_cmp_priority (const struct list_elem *a, const struct list_elem *b,
   return (t1->priority > t2->priority);
 }
 
+
+/* Devuelve la prioridad del thread con mayor prioridad hasta el momento */
 int
 get_highest_priority(void)
 {
