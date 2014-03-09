@@ -1,15 +1,14 @@
-            +--------------------+
-			| PROJECT 1: THREADS |
-			| Priority Scheduler |
-			|   DESIGN DOCUMENT  |
-			+--------------------+
-				   
++--------------------------+
+| PROJECT 2: USER PROGRAMS |
+|     DESIGN DOCUMENT      |
++--------------------------+
+
 ---- GROUP ----
 
 >> Fill in the names and email addresses of your group members.
 
-José de Jesús Vargas Muñoz <j.vargas.munoz@gmail.com>
-Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
+FirstName LastName <email@domain.example>
+FirstName LastName <email@domain.example>
 
 ---- PRELIMINARIES ----
 
@@ -20,60 +19,25 @@ Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
-   	 	 	 PRIORITY SCHEDULING
-			 ===================
+ARGUMENT PASSING
+================
 
 ---- DATA STRUCTURES ----
 
->> B1: Copy here the declaration of each new or changed `struct' or
+>> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
->> thread.c
->>    static struct list ready_list[64];     /* Arreglo de listas para agrupar prioridades */
->>    static int highest_priority;     /* Utilizada para saber cuál es la prioridad más alta en la ready_list */
-
 ---- ALGORITHMS ----
 
->> B2: How do you ensure that the highest priority thread waiting for
->> a semaphore or condition variable wakes up first?
-
->> En el caso de los threads esperando por un semáforo, éstos son insertados de manera ordenada en la lista waiters, por lo
->> que a la hora de despertar al thread de mayor prioridad, sólo se hace un pop_first de la lista.
->> En el caso de la variable condicional, los semáforos son insertados en la lista de manera normal. Cuando se tome un elemento de
->> la lista, se recorrerá para buscar al elemento máximo, ésto es, al semáforo cuya lista tiene al thread de mayor prioridad.
-
->> B3: How do you manage preemption when it is necessary during an 
->> interrupt handler?
-
->> Se utiliza una función llamada thread_check_highest_priority, la cual es invocada al momento de crear un thread. Ésta función
->> se encarga de ceder el procesador al thread de prioridad más alta, si éste es distinto del thread actual.
-
->> B4: Did you need to reorganize any instruction inside the code
->> that manages semaphores or condition variables? if your answer is
->> yes explain why
-
->> Fueron modificadas las funciones que operan sobre listas, para garantizar ahora que los primeros elementos a considerar
->> sean aquellos con la prioridad más alta.
-
----- SYNCHRONIZATION ----
-
->> The whole scheduler works with disabled interruptions,
->> so you do not have to worry about synchronization for this
->> assignment.
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+>> How do you avoid overflowing the stack page (this is a very important issue)?
 
 ---- RATIONALE ----
 
->> B7: Why did you choose this design?  In what ways is it superior to
->> another design you considered?
+>> A3: Did you use strtok_r as part of your solution of Argument Passing? Why?
 
->> El diseño inicial consistía en seguir tratando a la ready_list como una sóla lista en insertar ordenadamente.
->> El problema es que sería más complicado garantizar el comportamiento round robin para threads con la misma
->> prioridad. Se decidió representar a la ready list como un arreglo con las 64 prioridades, donde cada una tiene
->> una lista. En ésta lista se inserta al final y se toma del inicio (garantizando así el comportamiento round robin).
->> Éste diseño es superior ya que el anterior toma tiempo O(n) para recorrer la lista de threads.
->> En el diseño que se presenta en este trabajo, las inserciones son en tiempo O(1) (se inserta al final de una lista,
->> y el acceso a ésta fue en tiempo O(n)) y tomar al thread de mayor prioridad también toma tiempo O(n) (razonamiento
->> análogo). Por optimización, se decidió incluir una variable llamada highest_priority, la cual mantiene el registro de 
->> la mayor prioridad registrada en el arreglo ready_list. De ésta forma, funciones que requieren conocer la mayor
->> prioridad no tienen que recorrer el arreglo.
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least some advantages of the Unix approach.

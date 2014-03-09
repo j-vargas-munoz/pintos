@@ -1,2 +1,2 @@
-pintos
+Pintos - Proyecto 2
 ======

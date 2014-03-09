@@ -93,9 +93,6 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    int nice;
-    int recent_cpu;
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -103,7 +100,6 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
   };
 
 /* If false (default), use round-robin scheduler.
@@ -141,15 +137,5 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
-void
-thread_check_highest_priority (void);
-
-bool
-thread_cmp_priority (const struct list_elem *a, const struct list_elem *b,
-               void *aux UNUSED);
-
-int
-get_highest_priority(void);
 
 #endif /* threads/thread.h */
