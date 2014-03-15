@@ -7,8 +7,8 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+José de Jesús Vargas Muñoz <j.vargas.munoz@gmail.com>
+Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
 
 ---- PRELIMINARIES ----
 
@@ -46,7 +46,7 @@ FirstName LastName <email@domain.example>
 >> lo cual indica que hay n páginas contiguas disponibles. Cambia los bits a uno indicando que ahora las
 >> páginas están ocupadas. Ésta estrategia es conocida como "first fit".
 
-4. ¿Por qué es suceptible de fragmentación el Page Allocator de Pintos?
+>> 4. ¿Por qué es suceptible de fragmentación el Page Allocator de Pintos?
 >>
 >> Es posible que se tengan las n páginas requeridas disponibles, pero no necesariamente contiguas por
 >> el hecho de que estén intercaladas entre páginas en uso.
@@ -74,16 +74,32 @@ ARGUMENT PASSING
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+>>
+>> thread.h, en struct thread
+>>   #ifdef USERPROG
+>>      char* process_name;
+>>
+>> Se añadió process_name para guardar el nombre del thread.
 
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page (this is a very important issue)?
+>>
+>> La cadena de entrada se escribe al revés, y mientras es escrita, se llena
+>> un arreglo de direcciones que indican el comienzo de cada argumento.
+>> Por lo tanto, cuando deben ser escritos los valores argv[i] (las direcciones al
+>> inicio de los argumentos), basta con recorrer el arreglo auxiliar creado.
 
 ---- RATIONALE ----
 
 >> A3: Did you use strtok_r as part of your solution of Argument Passing? Why?
+>>
+>> No fue utlizada, porque no quisimos usar malloc para guardar los argumentos.
+>> En su lugar, sustituimos primero los espacios en blanco de la cadena original
+>> por caracteres de fin de cadena. De ésta forma, separamos en tokens la cadena
+>> sin necesidad de descomponerla y reservar más memoria.
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
