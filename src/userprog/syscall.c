@@ -20,7 +20,7 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
   int32_t *arg = (int32_t *)f->esp;
   if (! is_user_vaddr((int8_t *)arg + 3))
@@ -34,6 +34,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
     case SYS_WRITE:
       f->eax = write (++arg);
+      break;
+
+    case SYS_EXIT:
+      printf("%s: exit(0)\n", thread_current()->process_name);
+      thread_exit();
       break;
 
     // Other syscalls are not supported

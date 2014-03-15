@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #include "devices/timer.h"
 
 static thread_func start_process NO_RETURN;
@@ -46,6 +47,108 @@ process_execute (const char *file_name)
   return tid;
 }
 
+
+/* Coloca los arguments en el stack.
+   La bandera write indica si se va a escribir en el stack o sólo se
+   comprobará si el espacio total a ocupar es menor a 4K */
+static void*
+set_parameters(char* args, int len, int n_params, bool write)
+{
+  int c = 0;
+  char *esp = PHYS_BASE - 1;
+  char *arg_address[n_params];
+  int *argc = (int*)malloc(sizeof(int*));
+  *argc = n_params;
+  int p = n_params-1;
+  *esp = '\0';
+  c++;
+  esp--;
+  int i, n_chars = 1;
+  for (i = len-1; i >= 0; i--)
+  {
+    if (args[i] == '\0')
+    {
+      if (i != len-1 && args[i+1] != '\0') {
+        if (write) {
+          arg_address[p--] = (char*)(esp+1);
+          *esp = args[i];
+          n_chars++;
+        }
+        c++;
+      }
+    }
+    else {
+      if (write) {
+        *esp = args[i];
+        n_chars++;
+      }
+      c++;
+    }
+    esp--;
+  }
+  if (write)
+    arg_address[0] = (char*)(esp+1);
+
+  // *** WORD ALIGN ***
+  i = 0;
+  uint8_t *align = (uint8_t*)esp;
+  while (!((n_chars + i) % 4 == 0)) {
+    if (write)
+      *align = 0;
+    align--;
+    i++;
+    c++;
+  }
+
+  // *** Direcciones de inicio de las cadenas ***
+  char **args_dir = (char**)(align+1);
+  args_dir--;
+
+  if (write)
+    *args_dir = NULL;   // El null de término
+  c += 4;
+  args_dir--;
+
+
+  // *** Metiendo los argumentos al revés ***
+  for (i = *argc-1; i >= 0; i--) {
+    if (write)
+      *args_dir = arg_address[i];
+    args_dir--;
+    c += 4;
+  }
+  args_dir++;
+
+  // *** Colocando el apuntador al inicio del arreglo ***
+  char ***argv_pointer = (char***)args_dir;
+  argv_pointer--;
+  if (write)
+    *argv_pointer = args_dir;
+  c += 4;
+
+  // *** Colocando el número de argumentos ***
+  int *argc_pointer = (int*)argv_pointer;
+  argc_pointer--;
+  if (write)
+    *argc_pointer = *argc;
+  c += 4;
+
+
+  // *** Colocando un return 0 ***
+  argc_pointer--;
+  if (write)
+    *argc_pointer = 0;
+  c += 4;
+
+  if (!write && c > PGSIZE)
+    return PHYS_BASE - 1;
+
+  return argc_pointer;
+
+}
+
+
+
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -55,17 +158,45 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+
+  int len = strlen(file_name_);
+  int n_params = 0;
+  char* file = (char*)malloc(len*sizeof(char));
+  strlcpy(file, file_name_, len+1);
+  int i;
+  for (i = 0; i < len; i++)
+  {
+    if (file[i] == ' ') {
+      file[i] = '\0';
+      if (i != 0 && file[i-1] != '\0')
+        n_params++;
+
+    }
+  }
+  n_params++;
+
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (file, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+  else {
+    if_.esp = set_parameters(file, len, n_params, false);
+    if (if_.esp == PHYS_BASE-1)
+      thread_exit ();
+    else {
+      if_.esp = set_parameters(file, len, n_params, true);
+      strlcpy(thread_current()->name, file, sizeof thread_current()->name);
+      thread_current()->process_name = file;
+    }
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -99,6 +230,8 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+//Aquí imprimir el mensaje de terminación
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -465,3 +598,79 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+
+/*
+static void*
+set_parameters(char* args, int len, int n_params)
+{
+  char *esp = PHYS_BASE - 1;
+  char *arg_address[n_params];
+  int *argc = (int*)malloc(sizeof(int*));
+  *argc = n_params;
+  int p = n_params-1;
+  *esp = '\0';
+  esp--;
+  int i, n_chars = 1;
+  for (i = len-1; i >= 0; i--)
+  {
+    if (args[i] == '\0')
+    {
+      if (i != len-1 && args[i+1] != '\0') {
+        arg_address[p--] = (char*)(esp+1);
+        *esp = args[i];
+        n_chars++;
+      }
+    }
+    else {
+      *esp = args[i];
+      n_chars++;
+    }
+    esp--;
+  }
+  arg_address[0] = (char*)(esp+1);
+
+  // *** WORD ALIGN ***
+  i = 0;
+  uint8_t *align = (uint8_t*)esp;
+  while (!((n_chars + i) % 4 == 0)) {
+    *align = 0;
+    align--;
+    i++;
+  }
+
+
+  // *** Direcciones de inicio de las cadenas ***
+  char **args_dir = (char**)align;
+  args_dir--;
+
+  *args_dir = NULL;   // El null de término
+  args_dir--;
+
+
+  // *** Metiendo los argumentos al revés ***
+  for (i = *argc-1; i >= 0; i--) {
+      *args_dir = arg_address[i];
+      args_dir--;
+  }
+  args_dir++;
+
+  // *** Colocando el apuntador al inicio del arreglo ***
+  char ***argv_pointer = (char***)args_dir;
+  argv_pointer--;
+  *argv_pointer = args_dir;
+
+  // *** Colocando el número de argumentos ***
+  int *argc_pointer = (int*)argv_pointer;
+  argc_pointer--;
+  *argc_pointer = *argc;
+
+
+  // *** Colocando un return 0 ***
+  argc_pointer--;
+  *argc_pointer = 0;
+
+  return argc_pointer;
+
+}
+*/

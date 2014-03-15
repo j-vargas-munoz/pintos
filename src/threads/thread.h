@@ -94,6 +94,7 @@ struct thread
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
+    char* process_name;
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
