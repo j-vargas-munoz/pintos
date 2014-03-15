@@ -48,7 +48,7 @@ process_execute (const char *file_name)
 }
 
 
-/* Coloca los arguments en el stack.
+/* Coloca los argumentos en el stack.
    La bandera write indica si se va a escribir en el stack o sólo se
    comprobará si el espacio total a ocupar es menor a 4K */
 static void*
@@ -598,79 +598,3 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
-
-
-/*
-static void*
-set_parameters(char* args, int len, int n_params)
-{
-  char *esp = PHYS_BASE - 1;
-  char *arg_address[n_params];
-  int *argc = (int*)malloc(sizeof(int*));
-  *argc = n_params;
-  int p = n_params-1;
-  *esp = '\0';
-  esp--;
-  int i, n_chars = 1;
-  for (i = len-1; i >= 0; i--)
-  {
-    if (args[i] == '\0')
-    {
-      if (i != len-1 && args[i+1] != '\0') {
-        arg_address[p--] = (char*)(esp+1);
-        *esp = args[i];
-        n_chars++;
-      }
-    }
-    else {
-      *esp = args[i];
-      n_chars++;
-    }
-    esp--;
-  }
-  arg_address[0] = (char*)(esp+1);
-
-  // *** WORD ALIGN ***
-  i = 0;
-  uint8_t *align = (uint8_t*)esp;
-  while (!((n_chars + i) % 4 == 0)) {
-    *align = 0;
-    align--;
-    i++;
-  }
-
-
-  // *** Direcciones de inicio de las cadenas ***
-  char **args_dir = (char**)align;
-  args_dir--;
-
-  *args_dir = NULL;   // El null de término
-  args_dir--;
-
-
-  // *** Metiendo los argumentos al revés ***
-  for (i = *argc-1; i >= 0; i--) {
-      *args_dir = arg_address[i];
-      args_dir--;
-  }
-  args_dir++;
-
-  // *** Colocando el apuntador al inicio del arreglo ***
-  char ***argv_pointer = (char***)args_dir;
-  argv_pointer--;
-  *argv_pointer = args_dir;
-
-  // *** Colocando el número de argumentos ***
-  int *argc_pointer = (int*)argv_pointer;
-  argc_pointer--;
-  *argc_pointer = *argc;
-
-
-  // *** Colocando un return 0 ***
-  argc_pointer--;
-  *argc_pointer = 0;
-
-  return argc_pointer;
-
-}
-*/
