@@ -23,6 +23,7 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   int32_t *arg = (int32_t *)f->esp;
+  // void *esp = f->esp;
   if (! is_user_vaddr((int8_t *)arg + 3))
     thread_exit();
 
@@ -33,6 +34,19 @@ syscall_handler (struct intr_frame *f)
   switch (syscall_nr)
     {
     case SYS_WRITE:
+      /*
+      esp += 4;
+      int fd = *(int*)esp;
+
+      esp += 4;
+      void* buffer = (void*)(*(int*)esp);
+
+      esp += 4;
+      unsigned size = *(int*)esp;
+
+      putbuf(buffer, size);
+
+       */
       f->eax = write (++arg);
       break;
 
