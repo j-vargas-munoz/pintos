@@ -60,8 +60,8 @@ Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
 
 >> 6. ¿Qué información contiene el Page Table (Page Directory) de un proceso?
 >>
->> En cada entrada contiene una dirección de memoria virtual y una dirección en la memoria principal
->> a la cual está mapeada la dirección de memoria virtual.
+>> En cada entrada contiene una dirección de memoria virtual y una dirección en la memoria principal,
+>> ya sea RAM o en el disco duro, a la cual está mapeada la dirección de memoria virtual.
 
 >> 7. Cierto o Falso: El espacio de Memoria Virtual de usuario es común para todos los procesos de
 >> usuario, i.e. la una misma dirección en espacio de memoria virtual de usuario siempre contiene
@@ -110,4 +110,5 @@ ARGUMENT PASSING
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least some advantages of the Unix approach.
 >>
->> 
+>> Una ventaja que considero yo es que en Unix, el kernel no tiene que estar
+>> haciendo operaciones misceláneas, si no que sólo se dedica a las funciones de kernel
