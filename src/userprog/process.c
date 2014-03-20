@@ -20,6 +20,28 @@
 #include "threads/malloc.h"
 #include "devices/timer.h"
 
+  //un proceso es su hijo si se creo con process execute, tenemos que saber que procesos son nuestros hijos
+  // por ejemplo, tener una lista de hijos, guardando referencias al thread que se esta creando 
+  // se tiene que guardar la informacion de exit y exec
+  // al momento de que un thread termine, le dices a tu padre que ya terminaste y con que codigo terminaste
+
+//cada elemento de la lista tendria un apuntador al padre(pointer al struct thread), al hijo y su codigo de salida
+//lista: (por cada nodo)
+//  semaforo
+//  list_elem
+//  pid/struct thread
+
+//en el syscall wait, va a ir otro semaforo para que el padre espere por su hijo
+//el padre trata de bajar, y el hijo, al final de su ejecucion sube el semaforo
+//esto es, en la lista de hijos, ira un semaforo por cada hijo
+
+// si se muere un padre, va viendo cada hijo en la lista y le va diciendo que el padre ya murio
+// notificas al padre que ya te moriste y haces un wait a todos tus hijos
+
+// al hacer un wait, se elimina la entrada de la lista del hijo o poner una bandera para no perder la informacion de terminacion del hijo
+// al hacer un wait sobre un hijo que ya termino, debes devolver el codigo de terminacion inmediatamente
+
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -41,7 +63,9 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); // pasarle un semaforo inicializado en cero al hijo (creado aqui, en el contexto del padre)
+                                                                        // y aqui hacer un sema_down con el padre para que se quede
+                                                                        //atorado y no haga nada hasta que el hijo haga sema_up
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -152,8 +176,8 @@ set_parameters(char* args, int len, int n_params, bool write)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
-{
+start_process (void *file_name_) //pasarle una estructura que tenga semaforo y la bandera que tiene que verificar el padre
+{                                 //para que pueda hacer el sema_up y el padre pueda decidir si inicio bien
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
