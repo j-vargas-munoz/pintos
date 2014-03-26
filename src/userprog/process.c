@@ -41,6 +41,11 @@
 // al hacer un wait, se elimina la entrada de la lista del hijo o poner una bandera para no perder la informacion de terminacion del hijo
 // al hacer un wait sobre un hijo que ya termino, debes devolver el codigo de terminacion inmediatamente
 
+//checar que el cmd_line que se le pas a exec este en una direccion valida de memoria, osea que quede abajo de phys_base y que
+//esas direcciones sean legibles (si te regrea -1 no me acuerdo que, lo debes matar)
+
+//el intr_frame tiene un campoo eax de tama;o 4 bytes y ahi se debe escribir lo que te regrese la llamada a sistema
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
