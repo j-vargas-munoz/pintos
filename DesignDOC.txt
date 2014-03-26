@@ -110,6 +110,5 @@ ARGUMENT PASSING
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least some advantages of the Unix approach.
 >>
->> Una ventaja que considero yo es que en Unix, el kernel no tiene que estar
->> haciendo operaciones misceláneas, si no que sólo se dedica a las funciones de kernel
->> digo ventaja porque separas completamente el kernel de las aplicaciones de usuario.
+>> No le veo gran ventaja, ya que, aunque el padre de un thread hiciera la separación, el hijo, al crear un thread
+>> pues debe hacer lo mismo, en lugar de que el hijo lo hiciere.
