@@ -71,8 +71,30 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); // pasarle un semaforo inicializado en cero al hijo (creado aqui, en el contexto del padre)
                                                                         // y aqui hacer un sema_down con el padre para que se quede
                                                                         //atorado y no haga nada hasta que el hijo haga sema_up
+
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  else {
+    struct thread *t = get_thread(tid);
+    sema_down(&t->load_sema);
+
+    //t->parent = thread_current();
+    /*
+    struct child_thread *child;
+      child = malloc (sizeof *child);
+      if (child == NULL)
+        PANIC ("Failed to allocate memory for thread child information");
+
+      child->id = tid;
+      child->has_exited = false;
+      child->has_waited = false;
+
+      list_push_back (&thread_current ()->children_list, &child->child_elem);
+      printf("PROCESS EXECUTE. Padre: %d, hijo: %d, size: %d\n", thread_current()->tid, child->id, list_size(&thread_current()->children_list));*/
+      struct child_thread *ct = thread_get_child(tid);
+      if (ct != NULL && ct->id == tid && ct->return_status == -1)
+        return TID_ERROR;
+  }
   return tid;
 }
 
@@ -214,16 +236,28 @@ start_process (void *file_name_) //pasarle una estructura que tenga semaforo y l
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+
+  struct thread *t = thread_current();
+
+  if (!success)
+  {
+    sema_up(&t->load_sema);
+    t->exit_status = -1;
     thread_exit ();
+  }
   else {
     if_.esp = set_parameters(file, len, n_params, false);
     if (if_.esp == PHYS_BASE-1)
+    {
+      sema_up(&t->load_sema);
+      t->exit_status = -1;
       thread_exit ();
+    }
     else {
       if_.esp = set_parameters(file, len, n_params, true);
       strlcpy(thread_current()->name, file, sizeof thread_current()->name);
       thread_current()->process_name = file;
+      sema_up(&t->load_sema);
     }
   }
 
@@ -247,10 +281,44 @@ start_process (void *file_name_) //pasarle una estructura que tenga semaforo y l
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  timer_sleep (200);
-  return -1;
+  if (child_tid == TID_ERROR)
+    return TID_ERROR;
+
+  struct thread *child = get_thread(child_tid);
+  if (child == NULL) {
+    struct child_thread *hijo = thread_get_child(child_tid); 
+    if (hijo == NULL) {
+      printf("%s: exit(-1)\n", thread_current()->name);
+      thread_exit();
+    }
+    if (hijo->has_waited)
+      return -1;
+    if (hijo->has_exited)
+      return -1;
+    hijo->has_waited = true;
+    return hijo->return_status;
+  } else {
+    sema_down (&child->wait_sema);
+    struct thread *current = thread_current();
+    struct child_thread *ct = NULL;
+    struct list_elem *elem = list_head(&current->children_list);
+    while ((elem = list_next(elem)) != list_tail(&current->children_list))
+    {
+      ct = list_entry(elem, struct child_thread, child_elem);
+      if (ct->id == child_tid)
+        break;
+    }
+    if (ct == NULL)
+      return -1;
+    if (ct->has_waited)
+      return -1;
+    if (ct->has_exited)
+      return -1;
+    ct->has_waited = true;
+    return ct->return_status;
+  }
 }
 
 /* Free the current process's resources. */
@@ -260,7 +328,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-//Aquí imprimir el mensaje de terminación
+  sema_up(&cur->wait_sema);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -295,7 +363,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
@@ -479,7 +547,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);

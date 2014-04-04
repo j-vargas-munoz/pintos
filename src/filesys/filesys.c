@@ -101,3 +101,12 @@ do_format (void)
   free_map_close ();
   printf ("done.\n");
 }
+
+/*
+Tener los file* en un arreglo de 128
+pero las localidades 0 y 1 son privilegiadas, entinces si 
+lo alojamos en la 5 devolvemos la 7, por ejemplo. Recorremos
+en dos loas posiciones.
+Cuando termine un proceso, cerrar todos los archivos que se abrieron.
+
+*/

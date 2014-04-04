@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +24,15 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+struct child_thread
+  {
+    int id;
+    bool has_waited;
+    bool has_exited;
+    int return_status;
+    struct list_elem child_elem;
+  };
 
 /* A kernel thread or user process.
 
@@ -89,12 +99,21 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    #ifdef USERPROG
+      bool has_exited;
+    #endif
+
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
     char* process_name;
+    struct thread *parent;
+    int exit_status;
+    struct semaphore wait_sema;
+    struct semaphore load_sema;
+    struct list children_list;
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
@@ -138,5 +157,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct thread* get_thread (tid_t id);
+
+struct child_thread* thread_get_child(int cid);
 
 #endif /* threads/thread.h */

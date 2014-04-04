@@ -20,42 +20,95 @@ syscall_init (void)
 }
 
 static void
+exit (int status)
+{
+  struct thread *exiting_thread = thread_current();
+  exiting_thread->exit_status = status;
+  printf("%s: exit(%d)\n", exiting_thread->name, status);
+  thread_exit();
+}
+
+static int32_t
+exec (char *cmd)
+{
+  int32_t syscall = get_user_int ((uint8_t *) cmd);
+  if (syscall == -1) {
+    printf ("%s: exit(%d)\n", thread_current()->name,-1);
+    thread_exit();
+  }
+  tid_t child_tid = process_execute(cmd);
+  return child_tid;
+}
+
+
+static int
+wait (int pid)
+{
+  return process_wait(pid);
+}
+
+
+static bool
+is_valid_char_pointer(char* str)
+{
+  char *aux = str;
+  while ((void*)aux < PHYS_BASE && *aux != '\0')
+    if (get_user((uint8_t*)aux++) == -1) {
+      return false;
+    }
+  return (void*)aux < PHYS_BASE;
+}
+
+
+static bool
+is_valid_integer(void* pointer)
+{
+  return pointer < PHYS_BASE;
+}
+
+
+static void
 syscall_handler (struct intr_frame *f) 
 {
   int32_t *arg = (int32_t *)f->esp;
-  // void *esp = f->esp;
+  if (!is_user_vaddr((int8_t*)arg))
+    exit(-1);
+
   if (! is_user_vaddr((int8_t *)arg + 3))
-    thread_exit();
+    exit(-1);
 
   int32_t syscall_nr = get_user_int ((uint8_t *) arg);
   if (syscall_nr == -1)
-    thread_exit();
+    exit(-1);
 
   switch (syscall_nr)
     {
     case SYS_WRITE:
-      /*
-      esp += 4;
-      int fd = *(int*)esp;
-
-      esp += 4;
-      void* buffer = (void*)(*(int*)esp);
-
-      esp += 4;
-      unsigned size = *(int*)esp;
-
-      putbuf(buffer, size);
-
-       */
       f->eax = write (++arg);
       break;
 
-    case SYS_EXIT:
-      printf("%s: exit(0)\n", thread_current()->process_name);
-      thread_exit();
+    case SYS_HALT:
+      shutdown_power_off();
       break;
 
-    // Other syscalls are not supported
+    case SYS_EXIT:
+      if (!is_valid_integer(++arg))
+        exit(-1);
+      exit(*((int*)arg));
+      break;
+
+    case SYS_EXEC:
+      if (!is_valid_char_pointer(++arg))
+        exit(-1);
+      f->eax = exec((char*) *arg);
+      break;
+
+    case SYS_WAIT:
+      if (!is_valid_integer(++arg))
+        exit(-1);
+      f->eax = wait(*arg);
+      break;
+
     default:
       thread_exit ();
     }

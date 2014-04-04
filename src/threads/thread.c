@@ -8,6 +8,7 @@
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
@@ -183,6 +184,11 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+#ifdef USERPROG
+  struct thread *parent = thread_current();
+  t->parent = parent;
+#endif
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -280,9 +286,25 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  struct thread *t = thread_current();
   ASSERT (!intr_context ());
 
-#ifdef USERPROG
+  #ifdef USERPROG
+    struct list_elem *e;
+    struct child_thread *child;
+
+    if (t->parent != NULL)
+    {
+      struct child_thread *child;
+      child = malloc (sizeof *child);
+
+      child->id = t->tid;
+      child->return_status = t->exit_status;
+      child->has_exited = t->has_exited;
+      child->has_waited = false;
+
+      list_push_back (&t->parent->children_list, &child->child_elem);
+    }
   process_exit ();
 #endif
 
@@ -375,7 +397,7 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -422,9 +444,10 @@ kernel_thread (thread_func *function, void *aux)
 
   intr_enable ();       /* The scheduler runs with interrupts off. */
   function (aux);       /* Execute the thread function. */
+  thread_current()->has_exited = true;
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -463,6 +486,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  #ifdef USERPROG
+  sema_init(&t->load_sema, 0);
+  sema_init(&t->wait_sema, 0);
+  list_init(&t->children_list);
+  t->has_exited = false;
+  #endif
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -578,7 +608,41 @@ allocate_tid (void)
 
   return tid;
 }
-
+
+struct thread*
+get_thread (tid_t id)
+{
+  struct list_elem *e;
+
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->tid == id)
+          return t;
+    }
+
+  return NULL;
+}
+
+
+struct child_thread*
+thread_get_child(int cid) {
+  struct child_thread *ct;
+  struct thread *t = thread_current();
+  struct list_elem *e;
+
+  for (e = list_begin (&t->children_list); e != list_end (&t->children_list); e = list_next (e))
+  {
+    ct = list_entry (e, struct child_thread, child_elem);
+    if(ct -> id == cid)
+      return ct;
+  }
+
+    return NULL;
+}
+
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
