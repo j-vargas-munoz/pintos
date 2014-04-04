@@ -1,0 +1,142 @@
+			 +--------------------------+
+			 |        PINTOS            |
+			 | PROJECT 2: USER PROGRAMS |
+			 |     DESIGN DOCUMENT      |
+		     +--------------------------+
+
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+José de Jesús Vargas Muñoz <j.vargas.munoz@gmail.com>
+Luis Alfredo Lizárraga Santos <siul.al4@gmail.com>
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+
+   	 	      SYSTEM CALLS
+				     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+>> En struct thread
+>> #ifdef USERPROG
+    char* process_name;             // Nombre del proceso
+    struct thread *parent;          // Apuntador al padre del thread
+    int exit_status;                // Estado de salida del thread
+    struct semaphore wait_sema;     // Semáforo para esperar por los hijos
+    struct semaphore load_sema;     // Semáforo para cargar un proceso hijo
+    struct list children_list;      // Lista de hijos
+#endif
+
+>> struct child_thread              // Almacena valores de un proceso hijo
+  {
+    int id;                         // Id del hijo
+    bool has_waited;                // Si ya se esperó por este thread
+    bool has_exited;                // Si este thread ya terminó
+    int return_status;              // Estado de retorno del hijo
+    struct list_elem child_elem;    // Nodo para enlistarlo
+  };
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+>>
+>> Para leer datos, es necesario comprobar que éstos se localicen en direcciones
+>> de memoria por debajo de PHYSBASE. Para ésto se utilizan las funciones (definidas
+>> en syscall.c)
+>> static bool is_valid_char_pointer(char* str);
+>> static bool is_valid_integer(void* pointer);
+>>
+>> las cuales verifican que el argumento se encuentre en una dirección de memoria válida.
+>> En el caso de la función is_valid_char_pointer, se revisan todas las direcciones de
+>> memoria hasta topar con el caracter de fin de cadena '\0'.
+>>
+>> Para escribir en memoria; a partir de un apuntador recibido, se obtiene el buffer y el
+>> tamaño de éste. Después se invoca a la función putbuf.
+
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+>>
+>> Si el id de proceso recibido corresponde a un código de error, regresa
+>> dicho código.
+>> Se busca en los hijos del thread current al proceso con el id recibido
+>> como parámetro. Si el hijo no es encontrado, entonces el proceso actual no es su padre,
+>> por lo que se regresa -1 (éste es el único caso donde se invoca a thread_exit desde
+>> ésta función). De igual forma de regresa -1 si ya se esperó por éste hijo (en caso de serlo) o si
+>> ya terminó su ejecución. Si el hijo es encontrado pero aún no ha terminado, se utiliza un semáforo para
+>> esperar a que finalice. Despues se hacen las mismas verificaciones que en el caso anterior.
+>> Si pasa todas las restricciones, entonces el valor a devolver es el estado de
+>> finalización del thread por el cual se esperó.
+
+
+---- SYNCHRONIZATION ----
+
+>> B6: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+>>
+>> Cada thread cuenta con un semáforo llamado wait_sema, que se encarga
+>> de poner a esperar al proceso padre hasta que el hijo se haya cargado.
+>> Cuando se crea el proceso, se baja el semáforo; para después subirse
+>> después de que los valores del thread hijo son cargados en el stack.
+>> Si los valores no pudieron cargarse en el stack, se devuelve un -1
+>> (cargados o no los valores, se sube el semáforo; en start_process).
+>> Una vez que se levanta el semáforo, el thread padre comprueba
+>> si el código de terminación es -1, para saber el valor que devolverá.
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+>>
+>> Antes de que C termine: Si C no ha terminado, éste baja un semáforo
+>> que levanta justo en el momento que termina su ejecución. Ésto garantiza
+>> que el proceso padre debe esperar a que termine.
+>> Después de que C termine: Si C ya terminó y P no ha esperado por él,
+>> sólo devuelve el código de terminación de C. Si P ya esperó por él, 
+>> devuelve -1.
+>> Si P termina antes de que C termine: En el momento en el que C termine
+>> se requerirá conocer a su padre. En éste caso será null, por lo que
+>> la función wait devolverá -1.
+>> P termina después de que C termina. C ya terminó, por lo que debe
+>> preguntarse si es la primera vez que se espera por él. De ser así,
+>> se devuelve el código de terminación de C; en otro caso, -1.
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+>>
+>> No se eligió cambiar el mapeo.
