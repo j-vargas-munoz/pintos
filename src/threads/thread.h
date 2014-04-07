@@ -25,6 +25,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#ifdef USERPROG
+#define MAX_FILES 128
+
 struct child_thread
   {
     int id;
@@ -33,6 +36,14 @@ struct child_thread
     int return_status;
     struct list_elem child_elem;
   };
+
+struct file_wrapper
+{
+  unsigned file_descriptor;
+  struct file *file;
+};
+
+#endif
 
 /* A kernel thread or user process.
 
@@ -114,6 +125,9 @@ struct thread
     struct semaphore wait_sema;
     struct semaphore load_sema;
     struct list children_list;
+
+    struct file_wrapper *opened_files[MAX_FILES];
+
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
