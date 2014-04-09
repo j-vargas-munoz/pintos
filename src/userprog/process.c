@@ -191,6 +191,8 @@ set_parameters(char* args, int len, int n_params, bool write)
     *argc_pointer = 0;
   c += 4;
 
+  free(argc);
+
   if (!write && c > PGSIZE)
     return PHYS_BASE - 1;
 
@@ -256,7 +258,7 @@ start_process (void *file_name_) //pasarle una estructura que tenga semaforo y l
     else {
       if_.esp = set_parameters(file, len, n_params, true);
       strlcpy(thread_current()->name, file, sizeof thread_current()->name);
-      thread_current()->process_name = file;
+      //thread_current()->process_name = file;
       sema_up(&t->load_sema);
     }
   }
@@ -293,10 +295,9 @@ process_wait (tid_t child_tid)
       printf("%s: exit(-1)\n", thread_current()->name);
       thread_exit();
     }
-    if (hijo->has_waited)
+    if (hijo->has_waited || hijo->has_exited) {
       return -1;
-    if (hijo->has_exited)
-      return -1;
+    }
     hijo->has_waited = true;
     return hijo->return_status;
   } else {
@@ -544,7 +545,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //file_close (file);
+  if (file != NULL) {
+    t->executing = file;
+    file_deny_write(file);
+  }
   return success;
 }
 

@@ -126,7 +126,8 @@ struct thread
     struct semaphore load_sema;
     struct list children_list;
 
-    struct file_wrapper *opened_files[MAX_FILES];
+    //struct file_wrapper *opened_files[MAX_FILES];
+    struct file *executing;
 
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

@@ -46,7 +46,7 @@ static void
 block_filesystem (void)
 {
   if (!lock_held_by_current_thread(&file_lock))
-    lock_acquire(&file_lock);
+    lock_try_acquire(&file_lock);
 }
 
 static void
@@ -62,7 +62,6 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&file_lock);
-  int i;
 }
 
 
@@ -243,7 +242,7 @@ open (const char *file)
   struct file_wrapper *fw = malloc (sizeof (struct file_wrapper));
   fw->file_descriptor = next_fd;
   fw->file = file_open;
-  thread_current()->opened_files[next_fd] = fw;
+  //thread_current()->opened_files[next_fd] = fw;
   //file_deny_write(file_open);
   unblock_filesystem();
   return next_fd++;
@@ -261,11 +260,12 @@ close (int fd)
   if (files[fd]->owner_thread != thread_current())
     exit(-1);
   block_filesystem();
-  file_close(files[fd]->owned_file);
   //file_allow_write(files[fd]->owned_file);
+  file_close(files[fd]->owned_file);
 
   files[fd] = NULL;
-  thread_current()->opened_files[fd] = NULL;
+  //thread_current()->opened_files[fd] = NULL;
+  
   unblock_filesystem();
 }
 
@@ -307,17 +307,16 @@ read (int fd, void *buffer, unsigned size)
     exit(-1);
   if (fd > 128 || fd < 0)
     exit(-1);
+  block_filesystem();
   if (fd == STDIN_FILENO)
   {
     int i;
     uint8_t* buffer = (uint8_t*) buffer;
     for (i = 0; i < size; i++)
-    {
       buffer[i] = input_getc();
-    }
+    unblock_filesystem();
     return size;
   }
-  block_filesystem();
   if (files[fd] == NULL)
   {
     unblock_filesystem();
