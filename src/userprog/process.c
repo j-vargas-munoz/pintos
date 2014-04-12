@@ -20,35 +20,10 @@
 #include "threads/malloc.h"
 #include "devices/timer.h"
 
-  //un proceso es su hijo si se creo con process execute, tenemos que saber que procesos son nuestros hijos
-  // por ejemplo, tener una lista de hijos, guardando referencias al thread que se esta creando 
-  // se tiene que guardar la informacion de exit y exec
-  // al momento de que un thread termine, le dices a tu padre que ya terminaste y con que codigo terminaste
-
-//cada elemento de la lista tendria un apuntador al padre(pointer al struct thread), al hijo y su codigo de salida
-//lista: (por cada nodo)
-//  semaforo
-//  list_elem
-//  pid/struct thread
-
-//en el syscall wait, va a ir otro semaforo para que el padre espere por su hijo
-//el padre trata de bajar, y el hijo, al final de su ejecucion sube el semaforo
-//esto es, en la lista de hijos, ira un semaforo por cada hijo
-
-// si se muere un padre, va viendo cada hijo en la lista y le va diciendo que el padre ya murio
-// notificas al padre que ya te moriste y haces un wait a todos tus hijos
-
-// al hacer un wait, se elimina la entrada de la lista del hijo o poner una bandera para no perder la informacion de terminacion del hijo
-// al hacer un wait sobre un hijo que ya termino, debes devolver el codigo de terminacion inmediatamente
-
-//checar que el cmd_line que se le pas a exec este en una direccion valida de memoria, osea que quede abajo de phys_base y que
-//esas direcciones sean legibles (si te regrea -1 no me acuerdo que, lo debes matar)
-
-//el intr_frame tiene un campoo eax de tama;o 4 bytes y ahi se debe escribir lo que te regrese la llamada a sistema
-
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -68,9 +43,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); // pasarle un semaforo inicializado en cero al hijo (creado aqui, en el contexto del padre)
-                                                                        // y aqui hacer un sema_down con el padre para que se quede
-                                                                        //atorado y no haga nada hasta que el hijo haga sema_up
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
@@ -78,22 +51,9 @@ process_execute (const char *file_name)
     struct thread *t = get_thread(tid);
     sema_down(&t->load_sema);
 
-    //t->parent = thread_current();
-    /*
-    struct child_thread *child;
-      child = malloc (sizeof *child);
-      if (child == NULL)
-        PANIC ("Failed to allocate memory for thread child information");
-
-      child->id = tid;
-      child->has_exited = false;
-      child->has_waited = false;
-
-      list_push_back (&thread_current ()->children_list, &child->child_elem);
-      printf("PROCESS EXECUTE. Padre: %d, hijo: %d, size: %d\n", thread_current()->tid, child->id, list_size(&thread_current()->children_list));*/
-      struct child_thread *ct = thread_get_child(tid);
-      if (ct != NULL && ct->id == tid && ct->return_status == -1)
-        return TID_ERROR;
+    struct child_thread *ct = thread_get_child(tid);
+    if (ct != NULL && ct->id == tid && ct->return_status == -1)
+      return TID_ERROR;
   }
   return tid;
 }
@@ -205,8 +165,8 @@ set_parameters(char* args, int len, int n_params, bool write)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_) //pasarle una estructura que tenga semaforo y la bandera que tiene que verificar el padre
-{                                 //para que pueda hacer el sema_up y el padre pueda decidir si inicio bien
+start_process (void *file_name_)
+{
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -258,7 +218,6 @@ start_process (void *file_name_) //pasarle una estructura que tenga semaforo y l
     else {
       if_.esp = set_parameters(file, len, n_params, true);
       strlcpy(thread_current()->name, file, sizeof thread_current()->name);
-      //thread_current()->process_name = file;
       sema_up(&t->load_sema);
     }
   }
@@ -272,6 +231,7 @@ start_process (void *file_name_) //pasarle una estructura que tenga semaforo y l
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
+
 
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
@@ -291,15 +251,12 @@ process_wait (tid_t child_tid)
   struct thread *child = get_thread(child_tid);
   if (child == NULL) {
     struct child_thread *hijo = thread_get_child(child_tid); 
-    if (hijo == NULL) {
-      printf("%s: exit(-1)\n", thread_current()->name);
-      thread_exit();
-    }
-    if (hijo->has_waited || hijo->has_exited) {
+    if (hijo == NULL)
       return -1;
-    }
-    hijo->has_waited = true;
-    return hijo->return_status;
+    int r = hijo->return_status;
+    list_remove(&hijo->child_elem);
+    free(hijo);
+    return r;
   } else {
     sema_down (&child->wait_sema);
     struct thread *current = thread_current();
@@ -311,14 +268,14 @@ process_wait (tid_t child_tid)
       if (ct->id == child_tid)
         break;
     }
-    if (ct == NULL)
-      return -1;
-    if (ct->has_waited)
-      return -1;
-    if (ct->has_exited)
-      return -1;
-    ct->has_waited = true;
-    return ct->return_status;
+    if (ct == NULL) {
+      printf("%s: exit(-1)\n", thread_current()->name);
+      thread_exit();
+    }
+    int r = ct->return_status;
+    list_remove(&ct->child_elem);
+    free(ct);
+    return r;
   }
 }
 

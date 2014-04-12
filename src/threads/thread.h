@@ -37,12 +37,6 @@ struct child_thread
     struct list_elem child_elem;
   };
 
-struct file_wrapper
-{
-  unsigned file_descriptor;
-  struct file *file;
-};
-
 #endif
 
 /* A kernel thread or user process.
@@ -126,7 +120,6 @@ struct thread
     struct semaphore load_sema;
     struct list children_list;
 
-    //struct file_wrapper *opened_files[MAX_FILES];
     struct file *executing;
 
     /* Owned by userprog/process.c. */

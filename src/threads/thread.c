@@ -311,8 +311,18 @@ thread_exit (void)
       list_push_back (&t->parent->children_list, &child->child_elem);
     }
 
-    if (t->executing != NULL)
+    if (t->executing != NULL) {
       file_allow_write(t->executing);
+      file_close(t->executing);
+    }
+
+    while (!list_empty (&t->children_list))
+     {
+       struct list_elem *e = list_pop_front (&t->children_list);
+       struct child_thread *child = list_entry (e, struct child_thread, child_elem);
+       process_wait(child->id);
+       free(child);
+     }
   process_exit ();
 #endif
 
@@ -321,9 +331,7 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   intr_disable ();
   list_remove (&thread_current()->allelem);
-  //thread_allow_write_all(thread_current());
   thread_current ()->status = THREAD_DYING;
-  //free(thread_current()->process_name);
   schedule ();
   NOT_REACHED ();
 }
@@ -651,20 +659,7 @@ thread_get_child(int cid) {
 
     return NULL;
 }
-/*
-void
-thread_allow_write_all (struct thread *t)
-{
-  int i;
-  for (i = 2; i < MAX_FILES; i++)
-  {
-    struct file *f = &(t->opened_files[i]->file);
-    if (f != NULL)
-      file_allow_write(f);
-  }
-  free(&t->opened_files);
-}
-*/
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);

@@ -9,7 +9,7 @@
 
 static void syscall_handler (struct intr_frame *);
 
-static void exit (int status);
+void exit (int status);
 static int32_t exec (char *cmd);
 static int wait (int pid);
 static bool create (const char *file, unsigned initial_size);
@@ -45,8 +45,7 @@ static struct file_node *files[MAX_FILES];
 static void
 block_filesystem (void)
 {
-  if (!lock_held_by_current_thread(&file_lock))
-    lock_try_acquire(&file_lock);
+  lock_try_acquire(&file_lock);
 }
 
 static void
@@ -163,7 +162,7 @@ syscall_handler (struct intr_frame *f)
 }
 
 
-static void
+void
 exit (int status)
 {
   struct thread *exiting_thread = thread_current();
@@ -239,11 +238,6 @@ open (const char *file)
   node->owned_file = file_open;
   files[next_fd] = node;
 
-  struct file_wrapper *fw = malloc (sizeof (struct file_wrapper));
-  fw->file_descriptor = next_fd;
-  fw->file = file_open;
-  //thread_current()->opened_files[next_fd] = fw;
-  //file_deny_write(file_open);
   unblock_filesystem();
   return next_fd++;
 
@@ -260,11 +254,8 @@ close (int fd)
   if (files[fd]->owner_thread != thread_current())
     exit(-1);
   block_filesystem();
-  //file_allow_write(files[fd]->owned_file);
   file_close(files[fd]->owned_file);
-
   files[fd] = NULL;
-  //thread_current()->opened_files[fd] = NULL;
   
   unblock_filesystem();
 }
@@ -357,23 +348,6 @@ is_valid_integer(void* pointer)
 static int
 write (int fd, const void *buffer, unsigned size)
 {
-  /*
-  int fd;
-  char *buffer;
-  unsigned size;
-
-  // Here no verification is performed to retrieve 
-  // the values given by the user
-  // TODO: get the values using auxiliar functions
-  // and verify their validity.
-  fd = *sp;
-  buffer = (char *) *++sp;
-  size = (unsigned) *++sp;
-
-  // Writes in standar output
-  putbuf (buffer, size);
-
-  return size;*/
   if (get_user_int((uint8_t*)buffer) == -1)
     exit(-1);
   if (fd < 0 || fd > 128)
@@ -394,6 +368,7 @@ write (int fd, const void *buffer, unsigned size)
   unblock_filesystem();
   return bytes;
 }
+
 
 /* Reads a byte at user virtual address UADDR.
    UADDR must be below PHYS_BASE.
