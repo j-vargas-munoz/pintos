@@ -19,6 +19,10 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "devices/timer.h"
+#ifdef VM
+#include "vm/frame.c"
+#include "vm/page.h"
+#endif
 
 
 static thread_func start_process NO_RETURN;
@@ -626,7 +630,11 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  #ifdef VM
+    kpage = allocate_frame (PAL_USER | PAL_ZERO);
+  #else
+    kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  #endif
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
